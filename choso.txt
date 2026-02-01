@@ -1,40 +1,13 @@
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
-local player = Players.LocalPlayer
-local mouse = player:GetMouse()
-
--- [AYARLAR]
-local toolName = "Piercing Blood"
-local animID = "rbxassetid://182724289"
-local tiltAngle = -25 -- Daha belirgin bir eğilme
-
-local tool = Instance.new("Tool")
-tool.Name = toolName
-tool.RequiresHandle = false
-tool.Parent = player:WaitForChild("Backpack")
-
-local animation = Instance.new("Animation")
-animation.AnimationId = animID
-local animTrack, stayPos
-local isEquipped, isFiring = false, false
-
--- [HIGHLIGHT]
-local highlight = Instance.new("Highlight")
-highlight.FillColor = Color3.fromRGB(150, 0, 0)
-highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
-
--- [FE TILT FIX - MOTOR6D REPLICATION]
--- RootJoint yerine Waist (bel) veya Neck kullanmak R15/R6 uyumuna göre değişir.
--- Ama en garantisi Transform değeridir, fakat biz burada BodyGyro ile karakteri komple eğeceğiz.
--- Bu sayede server senin fiziksel olarak öne yattığını görecek.
+-- [AYARLAR GÜNCELLENDİ]
+local tiltAngle = 15 -- Pozitif değer karakteri arkaya yatırır
+local downOffset = -0.5 -- Arkaya yatarken dengede durması için hafif aşağı çekme
 
 RunService.Heartbeat:Connect(function()
     if isEquipped and player.Character then
         local HRP = player.Character:FindFirstChild("HumanoidRootPart")
         if not HRP or not stayPos then return end
 
-        -- 1. Hedef Takibi
+        -- 1. Hedef Takibi (Highlight)
         local target = mouse.Target
         if target and target.Parent and target.Parent:FindFirstChild("Humanoid") then
             highlight.Adornee = target.Parent
@@ -46,18 +19,17 @@ RunService.Heartbeat:Connect(function()
         -- 2. FLING & POSITION LOCK
         if isFiring and highlight.Adornee and highlight.Adornee:FindFirstChild("HumanoidRootPart") then
             local enemyHRP = highlight.Adornee.HumanoidRootPart
-            local oldCF = HRP.CFrame
             
-            -- Walkfling Gücü (Agresif)
+            -- Walkfling Gücü
             HRP.Velocity = Vector3.new(999999, 999999, 999999)
             HRP.CFrame = enemyHRP.CFrame * CFrame.Angles(math.random(-180, 180), math.random(-180, 180), math.random(-180, 180))
             
             RunService.RenderStepped:Wait()
+            -- Geri dönüşte eğik pozisyona (stayPos) dön
             HRP.CFrame = stayPos
             HRP.Velocity = Vector3.new(0, 0, 0)
         else
-            -- [FE EĞİLME BURADA] 
-            -- stayPos'u oluştururken eğimi içine gömüyoruz, böylece server senin yatay durduğunu görür.
+            -- [DURURKEN ARKAYA EĞİK SABİTLEME]
             HRP.CFrame = stayPos
             HRP.Velocity = Vector3.new(0, 0, 0)
             HRP.RotVelocity = Vector3.new(0, 0, 0)
@@ -65,36 +37,19 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
-tool.Activated:Connect(function() isFiring = true end)
-tool.Deactivated:Connect(function() isFiring = false end)
-
 tool.Equipped:Connect(function()
     local char = player.Character
     local hrp = char:WaitForChild("HumanoidRootPart")
     local hum = char:WaitForChild("Humanoid")
 
-    -- [FE TILT ÇÖZÜMÜ]
-    -- Karakteri RootPart'tan komple öne eğiyoruz.
-    -- Bu sayede Animator bozunsa bile herkes senin eğik olduğunu görür.
-    stayPos = hrp.CFrame * CFrame.Angles(math.rad(tiltAngle), 0, 0)
+    -- [FE BACK-TILT]
+    -- Karakteri arkaya eğip biraz aşağı indiriyoruz ki gerçekçi dursun
+    stayPos = hrp.CFrame * CFrame.new(0, downOffset, 0) * CFrame.Angles(math.rad(tiltAngle), 0, 0)
     isEquipped = true
     
     animTrack = hum:WaitForChild("Animator"):LoadAnimation(animation)
     animTrack.Priority = Enum.AnimationPriority.Action4
     animTrack:Play()
     
-    hum.PlatformStand = true
-end)
-
-tool.Unequipped:Connect(function()
-    isEquipped = false
-    isFiring = false
-    stayPos = nil
-    highlight.Parent = nil
-    if animTrack then animTrack:Stop(0.4) end
-    if player.Character then
-        player.Character.Humanoid.PlatformStand = false
-        -- Kalkarken yavaşça düzelmesi için
-        player.Character.HumanoidRootPart.CFrame = player.Character.HumanoidRootPart.CFrame * CFrame.Angles(math.rad(-tiltAngle), 0, 0)
-    end
+    hum.PlatformStand = true -- Hareket etmesini engeller, eğimi korur
 end)
