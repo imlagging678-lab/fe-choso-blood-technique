@@ -6,8 +6,9 @@ local mouse = player:GetMouse()
 
 -- [AYARLAR]
 local toolName = "Piercing Blood"
-local animID = "rbxassetid://182724289"
-local tiltAngle = 15 -- Arkaya 15 derece
+local animID = "rbxassetid://93648331" -- Yeni Enrage Animasyonu
+local lockPoint = 0.20 -- Senin istediğin omuz kalkış noktası
+local tiltAngle = 15 
 local downOffset = -0.5
 
 -- [TOOL OLUŞTURMA]
@@ -30,6 +31,12 @@ RunService.Heartbeat:Connect(function()
     if isEquipped and player.Character then
         local HRP = player.Character:FindFirstChild("HumanoidRootPart")
         if not HRP or not stayPos then return end
+
+        -- [[ PUNCH-STYLE ANIMATION LOCK ]]
+        if animTrack and animTrack.Length > 0 then
+            animTrack.TimePosition = animTrack.Length * lockPoint
+            animTrack:AdjustSpeed(0) -- Hareketi sıfırla
+        end
 
         local target = mouse.Target
         if target and target.Parent and target.Parent:FindFirstChild("Humanoid") then
@@ -60,13 +67,14 @@ tool.Equipped:Connect(function()
     local char = player.Character
     local hrp = char:WaitForChild("HumanoidRootPart")
     local hum = char:WaitForChild("Humanoid")
+    local animator = hum:WaitForChild("Animator")
 
     stayPos = hrp.CFrame * CFrame.new(0, downOffset, 0) * CFrame.Angles(math.rad(tiltAngle), 0, 0)
     isEquipped = true
     
-    animTrack = hum:WaitForChild("Animator"):LoadAnimation(animation)
+    animTrack = animator:LoadAnimation(animation)
     animTrack.Priority = Enum.AnimationPriority.Action4
-    animTrack:Play()
+    animTrack:Play(0.1, 20, 1) -- Ağırlığı 20 yaparak pozu iyice bastırıyoruz
     hum.PlatformStand = true
 end)
 
@@ -74,7 +82,10 @@ tool.Unequipped:Connect(function()
     isEquipped, isFiring = false, false
     stayPos = nil
     highlight.Parent = nil
-    if animTrack then animTrack:Stop(0.4) end
+    if animTrack then 
+        animTrack:Stop(0) 
+        animTrack:Destroy() 
+    end
     if player.Character then
         player.Character.Humanoid.PlatformStand = false
     end
